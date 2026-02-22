@@ -12,277 +12,206 @@ function App() {
   const apiKey = "73543bd7f6534afb927201646261202";
 
   const getWeather = async () => {
-    if (city === "") {
-      alert("Enter city name");
-      return;
-    }
+    if (city === "") { alert("Enter city name"); return; }
     try {
-      const response = await fetch(
+      const res = await fetch(
         `https://api.weatherapi.com/v1/current.json?key=${apiKey}&q=${city}&aqi=yes`
       );
-      const data = await response.json();
-      
-      if (data.error) {
-        setError(data.error.message);
-        setWeather(null);
-      } else {
-        setWeather(data);
-        setError("");
-        setCity("");
-      }
-    } catch (err) {
-      setError("Something went wrong");
-      setWeather(null);
-    }
+      const data = await res.json();
+      if (data.error) { setError(data.error.message); setWeather(null); }
+      else { setWeather(data); setError(""); setCity(""); }
+    } catch { setError("Something went wrong"); setWeather(null); }
   };
 
-  const handleKeyDown = (event) => {
-    if (event.key === "Enter") {
-      getWeather();
-    }
-  };
+  const handleKeyDown = (e) => { if (e.key === "Enter") getWeather(); };
 
   const dateBuilder = (d) => {
-    const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-    const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-    const day = days[d.getDay()];
-    const date = d.getDate();
-    const month = months[d.getMonth()];
-    const year = d.getFullYear();
-    return `${day} ${date} ${month} ${year}`;
+    const months = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+    const days = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+    return `${days[d.getDay()]} ${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
   };
 
-  // Pick background based on weather condition
   let bgImage = clearGif;
   if (weather) {
-    const condition = weather.current.condition.text.toLowerCase();
-    if (condition.includes("sunny") || condition.includes("clear") && weather.current.is_day === 1) {
-      bgImage = sunnyGif;
-    } else if (condition.includes("cloud") || condition.includes("overcast")) {
-      bgImage = cloudyGif;
-    } else if (condition.includes("rain") || condition.includes("drizzle")) {
-      bgImage = rainGif;
-    } else if (condition.includes("clear")) {
-      bgImage = clearGif;
-    }
+    const c = weather.current.condition.text.toLowerCase();
+    const isDay = weather.current.is_day === 1;
+    if (c.includes("rain") || c.includes("drizzle"))                        bgImage = rainGif;
+    else if (c.includes("cloud") || c.includes("overcast"))                 bgImage = cloudyGif;
+    else if ((c.includes("sunny") || c.includes("clear")) && isDay)         bgImage = sunnyGif;
   }
 
-  // Check if it's warm (>16°C like the reference design)
-  const isWarm = weather && weather.current.temp_c > 16;
+  const uvLabel  = (v) => v <= 2 ? "Low" : v <= 5 ? "Moderate" : v <= 7 ? "High" : v <= 10 ? "Very High" : "Extreme";
+  const aqiLabel = (v) => v === 1 ? "Good" : v === 2 ? "Moderate" : v === 3 ? "Unhealthy" : v === 4 ? "Unhealthy" : v === 5 ? "Very Bad" : "Hazardous";
+
+  const hasResult = weather !== null || error !== "";
+
+  const cards = weather ? [
+    { icon: "💧", label: "Humidity",      value: `${weather.current.humidity}%`,                                      sub: null },
+    { icon: "🌡️", label: "Feels Like",    value: `${Math.round(weather.current.feelslike_c)}°C`,                     sub: null },
+    { icon: "☀️", label: "UV Index",      value: weather.current.uv,                                                  sub: uvLabel(weather.current.uv) },
+    { icon: "🍃", label: "Air Quality",   value: weather.current.air_quality?.["us-epa-index"] ?? "N/A",
+      sub: weather.current.air_quality ? aqiLabel(weather.current.air_quality["us-epa-index"]) : "N/A" },
+    { icon: "💨", label: "Wind",          value: `${Math.round(weather.current.wind_kph)} km/h`,                     sub: null },
+    { icon: "👁️", label: "Visibility",    value: `${weather.current.vis_km} km`,                                    sub: null },
+    { icon: "🔽", label: "Pressure",      value: `${weather.current.pressure_mb} mb`,                               sub: null },
+    { icon: "🌧️", label: "Precipitation", value: `${weather.current.precip_mm} mm`,                                sub: null },
+  ] : [];
 
   return (
-    <div className="relative w-full h-screen overflow-hidden">
-      {/* Background GIF */}
-      <img
-        key={bgImage}
-        src={bgImage}
-        alt="weather background"
-        className="absolute inset-0 w-full h-full object-cover"
-        style={{ filter: isWarm ? 'brightness(1.1) saturate(1.2)' : 'brightness(0.9)' }}
-      />
+    <div style={{ position: "relative", width: "100%", minHeight: "100vh", overflow: "hidden" }}>
 
-      {/* Gradient Overlay */}
-      <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-black/40 to-black/75" />
+      {/* Background */}
+      <img key={bgImage} src={bgImage} alt="bg" style={{
+        position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover",
+        filter: weather && weather.current.temp_c > 16 ? "brightness(1.05)" : "brightness(0.85)"
+      }} />
+      <div style={{
+        position: "absolute", inset: 0,
+        background: "linear-gradient(to bottom, rgba(0,0,0,0.3), rgba(0,0,0,0.5), rgba(0,0,0,0.72))"
+      }} />
 
-      {/* Content */}
-      <main className="relative z-10 min-h-screen px-4 py-6 sm:px-6 sm:py-8 md:px-10 lg:px-12 md:py-12 overflow-y-auto">
-        {/* Search Box */}
-        <div className="w-full max-w-xl lg:max-w-2xl mx-auto mb-12 sm:mb-16 md:mb-20">
-          <input
-            type="text"
-            placeholder="Search location..."
-            value={city}
-            onChange={(e) => setCity(e.target.value)}
-            onKeyDown={handleKeyDown}
-            className="w-full px-4 py-3 sm:px-6 sm:py-4 text-base sm:text-lg md:text-xl 
-                     bg-white/50 backdrop-blur-sm rounded-b-2xl -mt-4 sm:-mt-6 
-                     shadow-lg text-gray-800 placeholder-gray-600
-                     focus:bg-white/75 focus:outline-none transition-all duration-300
-                     border-t-4 border-white/30"
-          />
-        </div>
+      <style dangerouslySetInnerHTML={{ __html: `
+        @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap');
+        * { font-family: 'Nunito', sans-serif !important; box-sizing: border-box; }
 
-        {/* Error Message */}
-        {error && (
-          <div className="max-w-xl lg:max-w-2xl mx-auto mb-6 sm:mb-8">
-            <p className="text-red-300 text-center text-sm sm:text-base md:text-lg 
-                         bg-red-900/30 backdrop-blur-sm rounded-xl px-4 py-2 sm:px-6 sm:py-3 
-                         border border-red-500/30">
-              {error}
+        .search-input {
+          width: 100%;
+          padding: 14px 22px;
+          font-size: 1.1rem;
+          background: rgba(255,255,255,0.55);
+          backdrop-filter: blur(12px);
+          border: 1.5px solid rgba(255,255,255,0.4);
+          border-radius: 16px;
+          color: #1a1a2e;
+          outline: none;
+          box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+          transition: background 0.3s;
+        }
+        .search-input::placeholder { color: #555; }
+        .search-input:focus { background: rgba(255,255,255,0.75); }
+
+        .card {
+          background: rgba(255,255,255,0.15);
+          backdrop-filter: blur(14px);
+          border: 1px solid rgba(255,255,255,0.25);
+          border-radius: 18px;
+          padding: 20px 12px;
+          text-align: center;
+          transition: transform 0.25s ease, background 0.25s ease;
+        }
+        .card:hover { transform: translateY(-4px) scale(1.03); background: rgba(255,255,255,0.25); }
+        .cards-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+        @media (max-width: 700px) { .cards-grid { grid-template-columns: repeat(2, 1fr); } }
+
+        @keyframes fadeUp {
+          from { opacity: 0; transform: translateY(24px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+        .fade-up { animation: fadeUp 0.6s ease both; }
+      ` }} />
+
+      {/* Full page layout */}
+      <div style={{ position: "relative", zIndex: 10, minHeight: "100vh", display: "flex", flexDirection: "column" }}>
+
+        {/* ── BEFORE SEARCH: vertically centered hero ── */}
+        {!hasResult && (
+          <div style={{ flex: 1, display: "flex", flexDirection: "column",
+                        justifyContent: "center", alignItems: "center", padding: "0 16px" }}>
+            <p style={{ color: "white", fontSize: "2rem", fontWeight: 800,
+                        textShadow: "0 2px 8px rgba(0,0,0,0.5)", marginBottom: 8, textAlign: "center" }}>
+              🌤️ Imperial Weather
             </p>
+            <p style={{ color: "rgba(255,255,255,0.7)", fontSize: "1rem", marginBottom: 24, textAlign: "center" }}>
+              Enter a city to get started
+            </p>
+            <div style={{ width: "100%", maxWidth: 520 }}>
+              <input className="search-input" type="text" placeholder="Search location..."
+                     value={city} onChange={(e) => setCity(e.target.value)} onKeyDown={handleKeyDown} />
+            </div>
           </div>
         )}
 
-        {/* Weather Display */}
-        {weather && (
-          <div className="max-w-6xl mx-auto space-y-6 sm:space-y-8 md:space-y-10 lg:space-y-12 animate-fade-in pb-8">
-            {/* Location & Date */}
-            <div className="text-center space-y-1 sm:space-y-2 px-2">
-              <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl 
-                           font-semibold text-white break-words
-                           drop-shadow-[3px_3px_rgba(50,50,70,0.5)]">
-                {weather.location.name}, {weather.location.country}
-              </h1>
-              <p className="text-base sm:text-lg md:text-xl text-white/90 font-light italic 
-                          drop-shadow-[2px_2px_rgba(50,50,70,0.5)]">
-                {dateBuilder(new Date())}
-              </p>
+        {/* ── AFTER SEARCH: search at top, content below ── */}
+        {hasResult && (
+          <div style={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
+
+            {/* Search bar pinned at top */}
+            <div style={{ padding: "18px 16px", display: "flex", justifyContent: "center" }}>
+              <div style={{ width: "100%", maxWidth: 520 }}>
+                <input className="search-input" type="text" placeholder="Search location..."
+                       value={city} onChange={(e) => setCity(e.target.value)} onKeyDown={handleKeyDown} />
+              </div>
             </div>
 
-            {/* Temperature Display */}
-            <div className="text-center px-2">
-              <div className="inline-block bg-white/20 backdrop-blur-md 
-                            rounded-2xl sm:rounded-3xl 
-                            px-6 py-4 sm:px-8 sm:py-6 md:px-12 md:py-8 
-                            shadow-[3px_6px_rgba(0,0,0,0.2)]
-                            border border-white/10">
-                <div className="text-6xl sm:text-7xl md:text-8xl lg:text-9xl 
-                              font-black text-white 
-                              drop-shadow-[3px_6px_rgba(50,50,70,0.5)]">
-                  {Math.round(weather.current.temp_c)}°C
+            {/* Error */}
+            {error && (
+              <div style={{ maxWidth: 520, margin: "0 auto 16px", width: "90%",
+                            background: "rgba(180,30,30,0.35)", border: "1px solid rgba(255,100,100,0.4)",
+                            borderRadius: 14, padding: "10px 20px", textAlign: "center", backdropFilter: "blur(10px)" }}>
+                <p style={{ color: "#fca5a5", fontSize: "1rem" }}>{error}</p>
+              </div>
+            )}
+
+            {/* Weather content */}
+            {weather && (
+              <div className="fade-up" style={{ flex: 1, maxWidth: 960, margin: "0 auto", width: "100%", padding: "0 16px 32px" }}>
+
+                {/* City + Date */}
+                <div style={{ textAlign: "center", marginBottom: 20 }}>
+                  <h1 style={{ color: "white", fontSize: "clamp(1.6rem, 4.5vw, 3rem)", fontWeight: 800,
+                               textShadow: "0 3px 10px rgba(0,0,0,0.5)", lineHeight: 1.2 }}>
+                    {weather.location.name}, {weather.location.country}
+                  </h1>
+                  <p style={{ color: "rgba(255,255,255,0.8)", fontSize: "1rem", fontStyle: "italic", marginTop: 6 }}>
+                    {dateBuilder(new Date())}
+                  </p>
                 </div>
-              </div>
-              <p className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl 
-                          font-bold text-white mt-4 sm:mt-6 px-4
-                          drop-shadow-[3px_3px_rgba(50,50,70,0.5)]">
-                {weather.current.condition.text}
-              </p>
-            </div>
 
-            {/* Additional Weather Info Cards */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 
-                          gap-3 sm:gap-4 md:gap-5 lg:gap-6 max-w-6xl mx-auto">
-              {/* Humidity */}
-              <div className="bg-white/10 backdrop-blur-md rounded-xl sm:rounded-2xl 
-                            p-3 sm:p-4 md:p-5 lg:p-6 
-                            border border-white/20 shadow-lg text-center
-                            hover:bg-white/20 hover:scale-105 transition-all duration-300">
-                <div className="text-2xl sm:text-3xl mb-1 sm:mb-2">💧</div>
-                <p className="text-white/70 text-xs sm:text-sm uppercase tracking-wide mb-1">Humidity</p>
-                <p className="text-xl sm:text-2xl md:text-3xl font-bold text-white">
-                  {weather.current.humidity}%
-                </p>
-              </div>
+                {/* Temperature */}
+                <div style={{ textAlign: "center", marginBottom: 24 }}>
+                  <div style={{ display: "inline-block", background: "rgba(255,255,255,0.2)",
+                                backdropFilter: "blur(16px)", borderRadius: 28,
+                                padding: "24px 52px", border: "1px solid rgba(255,255,255,0.2)",
+                                boxShadow: "0 8px 32px rgba(0,0,0,0.3)" }}>
+                    <div style={{ color: "white", fontSize: "clamp(3.5rem, 10vw, 6.5rem)",
+                                  fontWeight: 900, lineHeight: 1, textShadow: "0 4px 16px rgba(0,0,0,0.4)" }}>
+                      {Math.round(weather.current.temp_c)}°C
+                    </div>
+                  </div>
+                  <p style={{ color: "white", fontSize: "clamp(1.3rem, 3vw, 1.9rem)", fontWeight: 700,
+                              marginTop: 14, textShadow: "0 2px 8px rgba(0,0,0,0.5)" }}>
+                    {weather.current.condition.text}
+                  </p>
+                </div>
 
-              {/* Feels Like */}
-              <div className="bg-white/10 backdrop-blur-md rounded-xl sm:rounded-2xl 
-                            p-3 sm:p-4 md:p-5 lg:p-6 
-                            border border-white/20 shadow-lg text-center
-                            hover:bg-white/20 hover:scale-105 transition-all duration-300">
-                <div className="text-2xl sm:text-3xl mb-1 sm:mb-2">🌡️</div>
-                <p className="text-white/70 text-xs sm:text-sm uppercase tracking-wide mb-1">Feels Like</p>
-                <p className="text-xl sm:text-2xl md:text-3xl font-bold text-white">
-                  {Math.round(weather.current.feelslike_c)}°C
-                </p>
-              </div>
+                {/* Cards */}
+                <div className="cards-grid">
+                  {cards.map(({ icon, label, value, sub }) => (
+                    <div key={label} className="card">
+                      <div style={{ fontSize: "2rem", marginBottom: 8 }}>{icon}</div>
+                      <p style={{ color: "rgba(255,255,255,0.95)", fontSize: "0.72rem",
+                                  textTransform: "uppercase", letterSpacing: "0.15em",
+                                  fontWeight: 700, marginBottom: 6 }}>
+                        {label}
+                      </p>
+                      <p style={{ color: "white", fontSize: "1.55rem", fontWeight: 900,
+                                  textShadow: "0 2px 6px rgba(0,0,0,0.4)", lineHeight: 1.1 }}>
+                        {value}
+                      </p>
+                      {sub && (
+                        <p style={{ color: "#fde68a", fontSize: "0.8rem", fontWeight: 700, marginTop: 4 }}>
+                          {sub}
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
 
-              {/* UV Index */}
-              <div className="bg-white/10 backdrop-blur-md rounded-xl sm:rounded-2xl 
-                            p-3 sm:p-4 md:p-5 lg:p-6 
-                            border border-white/20 shadow-lg text-center
-                            hover:bg-white/20 hover:scale-105 transition-all duration-300">
-                <div className="text-2xl sm:text-3xl mb-1 sm:mb-2">☀️</div>
-                <p className="text-white/70 text-xs sm:text-sm uppercase tracking-wide mb-1">UV Index</p>
-                <p className="text-xl sm:text-2xl md:text-3xl font-bold text-white">
-                  {weather.current.uv}
-                </p>
-                <p className="text-xs text-white/60 mt-1">
-                  {weather.current.uv <= 2 ? "Low" : 
-                   weather.current.uv <= 5 ? "Moderate" :
-                   weather.current.uv <= 7 ? "High" :
-                   weather.current.uv <= 10 ? "Very High" : "Extreme"}
-                </p>
               </div>
-
-              {/* AQI (Air Quality Index) */}
-              <div className="bg-white/10 backdrop-blur-md rounded-xl sm:rounded-2xl 
-                            p-3 sm:p-4 md:p-5 lg:p-6 
-                            border border-white/20 shadow-lg text-center
-                            hover:bg-white/20 hover:scale-105 transition-all duration-300">
-                <div className="text-2xl sm:text-3xl mb-1 sm:mb-2">🍃</div>
-                <p className="text-white/70 text-xs sm:text-sm uppercase tracking-wide mb-1">Air Quality</p>
-                <p className="text-xl sm:text-2xl md:text-3xl font-bold text-white">
-                  {weather.current.air_quality ? 
-                    Math.round(weather.current.air_quality["us-epa-index"]) : "N/A"}
-                </p>
-                <p className="text-xs text-white/60 mt-1">
-                  {weather.current.air_quality ? 
-                    (weather.current.air_quality["us-epa-index"] === 1 ? "Good" :
-                     weather.current.air_quality["us-epa-index"] === 2 ? "Moderate" :
-                     weather.current.air_quality["us-epa-index"] === 3 ? "Unhealthy" :
-                     weather.current.air_quality["us-epa-index"] === 4 ? "Unhealthy" :
-                     weather.current.air_quality["us-epa-index"] === 5 ? "Very Bad" : "Hazardous")
-                    : "Not Available"}
-                </p>
-              </div>
-
-              {/* Wind Speed */}
-              <div className="bg-white/10 backdrop-blur-md rounded-xl sm:rounded-2xl 
-                            p-3 sm:p-4 md:p-5 lg:p-6 
-                            border border-white/20 shadow-lg text-center
-                            hover:bg-white/20 hover:scale-105 transition-all duration-300">
-                <div className="text-2xl sm:text-3xl mb-1 sm:mb-2">💨</div>
-                <p className="text-white/70 text-xs sm:text-sm uppercase tracking-wide mb-1">Wind</p>
-                <p className="text-xl sm:text-2xl md:text-3xl font-bold text-white">
-                  {Math.round(weather.current.wind_kph)} km/h
-                </p>
-              </div>
-
-              {/* Visibility */}
-              <div className="bg-white/10 backdrop-blur-md rounded-xl sm:rounded-2xl 
-                            p-3 sm:p-4 md:p-5 lg:p-6 
-                            border border-white/20 shadow-lg text-center
-                            hover:bg-white/20 hover:scale-105 transition-all duration-300">
-                <div className="text-2xl sm:text-3xl mb-1 sm:mb-2">👁️</div>
-                <p className="text-white/70 text-xs sm:text-sm uppercase tracking-wide mb-1">Visibility</p>
-                <p className="text-xl sm:text-2xl md:text-3xl font-bold text-white">
-                  {weather.current.vis_km} km
-                </p>
-              </div>
-
-              {/* Pressure */}
-              <div className="bg-white/10 backdrop-blur-md rounded-xl sm:rounded-2xl 
-                            p-3 sm:p-4 md:p-5 lg:p-6 
-                            border border-white/20 shadow-lg text-center
-                            hover:bg-white/20 hover:scale-105 transition-all duration-300">
-                <div className="text-2xl sm:text-3xl mb-1 sm:mb-2">🔽</div>
-                <p className="text-white/70 text-xs sm:text-sm uppercase tracking-wide mb-1">Pressure</p>
-                <p className="text-xl sm:text-2xl md:text-3xl font-bold text-white">
-                  {weather.current.pressure_mb} mb
-                </p>
-              </div>
-
-              {/* Precipitation */}
-              <div className="bg-white/10 backdrop-blur-md rounded-xl sm:rounded-2xl 
-                            p-3 sm:p-4 md:p-5 lg:p-6 
-                            border border-white/20 shadow-lg text-center
-                            hover:bg-white/20 hover:scale-105 transition-all duration-300">
-                <div className="text-2xl sm:text-3xl mb-1 sm:mb-2">🌧️</div>
-                <p className="text-white/70 text-xs sm:text-sm uppercase tracking-wide mb-1">Precipitation</p>
-                <p className="text-xl sm:text-2xl md:text-3xl font-bold text-white">
-                  {weather.current.precip_mm} mm
-                </p>
-              </div>
-            </div>
+            )}
           </div>
         )}
-      </main>
-
-      <style>{`
-        @keyframes fade-in {
-          from {
-            opacity: 0;
-            transform: translateY(20px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-        .animate-fade-in {
-          animation: fade-in 0.6s ease-out;
-        }
-      `}</style>
+      </div>
     </div>
   );
 }
