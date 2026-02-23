@@ -61,9 +61,10 @@ function App() {
     <div style={{ position: "relative", width: "100%", minHeight: "100vh", overflow: "hidden" }}>
 
       {/* Background */}
-      <img key={bgImage} src={bgImage} alt="bg" style={{
+      <img src={bgImage} alt="bg" style={{
         position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover",
-        filter: weather && weather.current.temp_c > 16 ? "brightness(1.05)" : "brightness(0.85)"
+        filter: weather && weather.current.temp_c > 16 ? "brightness(1.05)" : "brightness(0.85)",
+        transition: "filter 0.4s ease"
       }} />
       <div style={{
         position: "absolute", inset: 0,
