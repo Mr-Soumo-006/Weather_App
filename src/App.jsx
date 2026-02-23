@@ -5,32 +5,40 @@ import cloudyGif from "./assets/cloudy.gif";
 import clearGif from "./assets/clear.gif";
 
 function App() {
-  const cityRef = useRef("");          // ← uncontrolled: no re-render on every keystroke
-  const [inputVal, setInputVal] = useState("");
+  // ✅ Uncontrolled refs — no state, no re-renders while typing
+  const heroInputRef = useRef(null);
+  const resultsInputRef = useRef(null);
+
   const [weather, setWeather] = useState(null);
   const [error, setError] = useState("");
 
   const apiKey = "73543bd7f6534afb927201646261202";
 
   const getWeather = async () => {
-    const q = cityRef.current;
+    // Read value directly from the DOM — no state involved
+    const q = (heroInputRef.current?.value || resultsInputRef.current?.value || "").trim();
     if (!q) { alert("Enter city name"); return; }
+
+    // Clear both inputs immediately via DOM
+    if (heroInputRef.current) heroInputRef.current.value = "";
+    if (resultsInputRef.current) resultsInputRef.current.value = "";
+
     try {
       const res = await fetch(
         `https://api.weatherapi.com/v1/current.json?key=${apiKey}&q=${q}&aqi=yes`
       );
       const data = await res.json();
       if (data.error) { setError(data.error.message); setWeather(null); }
-      else { setWeather(data); setError(""); cityRef.current = ""; setInputVal(""); }
+      else { setWeather(data); setError(""); }
     } catch { setError("Something went wrong"); setWeather(null); }
   };
 
-  const handleChange = (e) => {
-    cityRef.current = e.target.value;
-    setInputVal(e.target.value);   // still needed to keep input controlled visually
+  const handleKeyDown = (e) => {
+    if (e.key === "Enter") {
+      e.target.blur(); // dismiss keyboard
+      getWeather();
+    }
   };
-
-  const handleKeyDown = (e) => { if (e.key === "Enter") getWeather(); };
 
   const dateBuilder = (d) => {
     const months = ["January","February","March","April","May","June","July","August","September","October","November","December"];
@@ -54,12 +62,15 @@ function App() {
 
   const hasResult = weather !== null || error !== "";
 
+  const uvLabel  = (v) => v <= 2 ? "Low" : v <= 5 ? "Moderate" : v <= 7 ? "High" : v <= 10 ? "Very High" : "Extreme";
+  const aqiLabel = (v) => v === 1 ? "Good" : v === 2 ? "Moderate" : v === 3 ? "Unhealthy" : v === 4 ? "Unhealthy" : v === 5 ? "Very Bad" : "Hazardous";
+
   const cards = weather ? [
     { icon: "💧", label: "Humidity",      value: `${weather.current.humidity}%`,                                  sub: null },
     { icon: "🌡️", label: "Feels Like",    value: `${Math.round(weather.current.feelslike_c)}°C`,                 sub: null },
-    { icon: "☀️", label: "UV Index",      value: weather.current.uv,                                              sub: (v => v <= 2 ? "Low" : v <= 5 ? "Moderate" : v <= 7 ? "High" : v <= 10 ? "Very High" : "Extreme")(weather.current.uv) },
+    { icon: "☀️", label: "UV Index",      value: weather.current.uv,                                              sub: uvLabel(weather.current.uv) },
     { icon: "🍃", label: "Air Quality",   value: weather.current.air_quality?.["us-epa-index"] ?? "N/A",
-      sub: weather.current.air_quality ? (v => v === 1 ? "Good" : v === 2 ? "Moderate" : v === 3 ? "Unhealthy" : v === 4 ? "Unhealthy" : v === 5 ? "Very Bad" : "Hazardous")(weather.current.air_quality["us-epa-index"]) : "N/A" },
+      sub: weather.current.air_quality ? aqiLabel(weather.current.air_quality["us-epa-index"]) : "N/A" },
     { icon: "💨", label: "Wind",          value: `${Math.round(weather.current.wind_kph)} km/h`,                 sub: null },
     { icon: "👁️", label: "Visibility",    value: `${weather.current.vis_km} km`,                                sub: null },
     { icon: "🔽", label: "Pressure",      value: `${weather.current.pressure_mb} mb`,                           sub: null },
@@ -69,20 +80,18 @@ function App() {
   return (
     <div style={{ position: "fixed", inset: 0, overflow: "hidden" }}>
 
-      {/* ── Background GIF — isolated in its own GPU layer ── */}
+      {/* Background */}
       <div style={{
-        position: "absolute", inset: 0,
+        position: "absolute", inset: 0, zIndex: 0,
         backgroundImage: `url(${bgImage})`,
         backgroundSize: "cover",
         backgroundPosition: "center",
         filter: bgBrightness,
-        // Force own compositing layer so nothing above can invalidate it
         transform: "translateZ(0)",
         willChange: "filter",
-        zIndex: 0,
       }} />
 
-      {/* Gradient overlay */}
+      {/* Gradient */}
       <div style={{
         position: "absolute", inset: 0, zIndex: 1,
         background: "linear-gradient(to bottom, rgba(0,0,0,0.3), rgba(0,0,0,0.5), rgba(0,0,0,0.72))",
@@ -91,34 +100,30 @@ function App() {
       <style dangerouslySetInnerHTML={{ __html: `
         @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap');
         * { font-family: 'Nunito', sans-serif !important; box-sizing: border-box; margin: 0; padding: 0; }
-        html, body { height: 100%; overflow: hidden; }
+        html, body { height: 100%; overflow: hidden; overscroll-behavior: none; }
 
         .search-input {
           width: 100%;
           padding: 14px 22px;
-          font-size: 1.1rem;
-          /* ✅ NO backdrop-filter — that was forcing re-composite on every keystroke */
+          font-size: 16px;
           background: rgba(255,255,255,0.7);
           border: 1.5px solid rgba(255,255,255,0.5);
           border-radius: 16px;
           color: #1a1a2e;
           outline: none;
           box-shadow: 0 8px 32px rgba(0,0,0,0.2);
-          transition: background 0.3s;
+          /* No transition — even this can cause a repaint */
         }
         .search-input::placeholder { color: #555; }
         .search-input:focus { background: rgba(255,255,255,0.88); }
 
         .card {
-          /* ✅ NO backdrop-filter on cards either */
           background: rgba(255,255,255,0.18);
           border: 1px solid rgba(255,255,255,0.25);
           border-radius: 18px;
           padding: 20px 12px;
           text-align: center;
-          transition: transform 0.25s ease, background 0.25s ease;
         }
-        .card:hover { transform: translateY(-4px) scale(1.03); background: rgba(255,255,255,0.28); }
         .cards-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
         @media (max-width: 700px) { .cards-grid { grid-template-columns: repeat(2, 1fr); } }
 
@@ -129,18 +134,19 @@ function App() {
         .fade-up { animation: fadeUp 0.6s ease both; }
 
         .panel {
-          position: absolute; inset: 0; zIndex: 2;
+          position: absolute; inset: 0;
           transition: opacity 0.3s ease;
+          transform: translateZ(0);
         }
         .panel-scroll {
-          position: absolute; inset: 0; zIndex: 2;
+          position: absolute; inset: 0;
           overflow-y: auto;
           -webkit-overflow-scrolling: touch;
           transition: opacity 0.3s ease;
+          transform: translateZ(0);
         }
       ` }} />
 
-      {/* ── UI layer ── */}
       <div style={{ position: "absolute", inset: 0, zIndex: 2 }}>
 
         {/* HERO */}
@@ -157,10 +163,23 @@ function App() {
           <p style={{ color: "rgba(255,255,255,0.7)", fontSize: "1rem", marginBottom: 24, textAlign: "center" }}>
             Enter a city to get started
           </p>
-          <div style={{ width: "100%", maxWidth: 520 }}>
-            <input className="search-input" type="text" placeholder="Search location..."
-                   value={inputVal} onChange={handleChange} onKeyDown={handleKeyDown} />
+          <div style={{ width: "100%", maxWidth: 520, display: "flex", gap: 10 }}>
+            {/* ✅ Uncontrolled input — no onChange, no state, zero re-renders while typing */}
+            <input
+              ref={heroInputRef}
+              className="search-input"
+              type="text"
+              placeholder="Search location..."
+              onKeyDown={handleKeyDown}
+            />
           </div>
+          <button onClick={getWeather} style={{
+            marginTop: 14, padding: "12px 36px", fontSize: "1rem", fontWeight: 800,
+            background: "rgba(255,255,255,0.85)", color: "#1a1a2e",
+            border: "none", borderRadius: 14, cursor: "pointer",
+          }}>
+            Search
+          </button>
         </div>
 
         {/* RESULTS */}
@@ -170,11 +189,23 @@ function App() {
         }}>
           <div style={{ minHeight: "100%", display: "flex", flexDirection: "column" }}>
 
-            <div style={{ padding: "18px 16px", display: "flex", justifyContent: "center", flexShrink: 0 }}>
-              <div style={{ width: "100%", maxWidth: 520 }}>
-                <input className="search-input" type="text" placeholder="Search location..."
-                       value={inputVal} onChange={handleChange} onKeyDown={handleKeyDown} />
+            <div style={{ padding: "18px 16px", display: "flex",
+                          justifyContent: "center", alignItems: "center", gap: 10, flexShrink: 0 }}>
+              <div style={{ flex: 1, maxWidth: 440 }}>
+                {/* ✅ Uncontrolled input */}
+                <input
+                  ref={resultsInputRef}
+                  className="search-input"
+                  type="text"
+                  placeholder="Search location..."
+                  onKeyDown={handleKeyDown}
+                />
               </div>
+              <button onClick={getWeather} style={{
+                padding: "14px 20px", fontSize: "1.1rem", fontWeight: 800,
+                background: "rgba(255,255,255,0.85)", color: "#1a1a2e",
+                border: "none", borderRadius: 14, cursor: "pointer",
+              }}>🔍</button>
             </div>
 
             {error && (
@@ -186,8 +217,8 @@ function App() {
             )}
 
             {weather && (
-              <div className="fade-up" style={{ flex: 1, maxWidth: 960, margin: "0 auto", width: "100%", padding: "0 16px 32px" }}>
-
+              <div className="fade-up" style={{ flex: 1, maxWidth: 960, margin: "0 auto",
+                                               width: "100%", padding: "0 16px 32px" }}>
                 <div style={{ textAlign: "center", marginBottom: 20 }}>
                   <h1 style={{ color: "white", fontSize: "clamp(1.6rem, 4.5vw, 3rem)", fontWeight: 800,
                                textShadow: "0 3px 10px rgba(0,0,0,0.5)", lineHeight: 1.2 }}>
@@ -227,12 +258,10 @@ function App() {
                     </div>
                   ))}
                 </div>
-
               </div>
             )}
           </div>
         </div>
-
       </div>
     </div>
   );

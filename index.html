@@ -3,8 +3,31 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>weather-app</title>
+
+    <!-- ✅ THE FIX: interactive-widget=resizes-content stops Android Chrome
+         from resizing the layout when the keyboard opens -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, interactive-widget=resizes-content" />
+
+    <title>Daily Weather Forecast</title>
+
+    <style>
+      /* ✅ Lock the page size. The keyboard will overlay the content
+         instead of pushing/resizing it — no more shaking */
+      html,
+      body,
+      #root {
+        height: 100%;
+        width: 100%;
+        overflow: hidden;
+        margin: 0;
+        padding: 0;
+        /* Prevent elastic/bounce scroll on Android */
+        overscroll-behavior: none;
+        /* Prevent text size adjustment when rotating */
+        -webkit-text-size-adjust: 100%;
+        text-size-adjust: 100%;
+      }
+    </style>
   </head>
   <body>
     <div id="root"></div>
