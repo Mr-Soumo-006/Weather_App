@@ -119,7 +119,7 @@ function App() {
                         justifyContent: "center", alignItems: "center", padding: "0 16px" }}>
             <p style={{ color: "white", fontSize: "2rem", fontWeight: 800,
                         textShadow: "0 2px 8px rgba(0,0,0,0.5)", marginBottom: 8, textAlign: "center" }}>
-              🌤️ Your Daily Weather Check
+              🌤️ Daily Weather Forecast 
             </p>
             <p style={{ color: "rgba(255,255,255,0.7)", fontSize: "1rem", marginBottom: 24, textAlign: "center" }}>
               Enter a city to get started
