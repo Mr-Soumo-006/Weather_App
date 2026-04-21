@@ -12,7 +12,7 @@ function App() {
   const [weather, setWeather] = useState(null);
   const [error, setError] = useState("");
 
-  const apiKey = "73543bd7f6534afb927201646261202";
+  const apiKey = "99017624499747b997a10357262104";
 
   const getWeather = async () => {
     // Read value directly from the DOM — no state involved
